@@ -1,4 +1,2 @@
-python-telegram-bot[job-queue]==20.3
-python-dotenv==1.0.0
-sqlalchemy==2.0.23
+python-telegram-bot==20.3
 flask==3.0.0
