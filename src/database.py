@@ -1,12 +1,10 @@
 import sqlite3
-import json
-from datetime import datetime
 import os
 
 class Database:
     def __init__(self):
-        self.db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'orders.db')
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        # استخدم مساراً مطلقاً لـ Render
+        self.db_path = '/tmp/orders.db' if 'RENDER' in os.environ else 'orders.db'
         self.init_db()
     
     def init_db(self):
