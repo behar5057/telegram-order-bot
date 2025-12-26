@@ -1,17 +1,17 @@
-import logging
 import os
-import threading
-from datetime import datetime
+import logging
 from flask import Flask, render_template_string
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
-    filters, ConversationHandler, ContextTypes
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+
+# إعداد التسجيل
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
 )
+logger = logging.getLogger(__name__)
 
-from database import db
-
-# ========== Flask Web Server ==========
+# تطبيق Flask
 app = Flask(__name__)
 
 @app.route('/')
@@ -22,107 +22,145 @@ def home():
     <head>
         <title>Telegram Order Bot</title>
         <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
-            .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            .status { color: #28a745; font-weight: bold; font-size: 24px; margin: 20px 0; }
-            .info { color: #666; margin: 10px 0; }
-            .stats { display: flex; justify-content: space-around; margin: 30px 0; }
-            .stat-box { background: #f8f9fa; padding: 15px; border-radius: 5px; }
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            .status { color: green; font-weight: bold; }
         </style>
     </head>
     <body>
-        <div class="container">
-            <h1>🤖 متجر الطلبات على Telegram</h1>
-            <div class="status">✅ البوت يعمل بنجاح!</div>
-            <p class="info">تم النشر على Render Web Service</p>
-            <p class="info">البوت جاهز لاستقبال الطلبات</p>
-            
-            <div class="stats">
-                <div class="stat-box">
-                    <h3>🛍️ النظام يشمل:</h3>
-                    <p>• تسجيل البائعين</p>
-                    <p>• إدارة المنتجات</p>
-                    <p>• استقبال الطلبات</p>
-                    <p>• تنظيم الطلبيات</p>
-                </div>
-            </div>
-            
-            <p>🚀 ابدأ بإرسال /start في البوت</p>
-        </div>
+        <h1>🤖 Telegram Order Bot</h1>
+        <p class="status">✅ البوت يعمل بنجاح!</p>
+        <p>تم النشر على Render Web Service</p>
+        <p>🚀 البوت نشط وجاهز لاستقبال الطلبات</p>
     </body>
     </html>
     ''')
 
 @app.route('/health')
 def health():
-    return {"status": "healthy", "service": "telegram-order-bot", "timestamp": datetime.now().isoformat()}, 200
+    return {"status": "healthy"}, 200
 
 @app.route('/ping')
 def ping():
     return "pong", 200
 
-# ========== Telegram Bot States ==========
-(
-    START,
-    SELLER_REGISTER_NAME,
-    SELLER_REGISTER_STORE,
-    SELLER_REGISTER_PASSWORD,
-    SELLER_LOGIN,
-    SELLER_DASHBOARD,
-    ADD_PRODUCT_NAME,
-    ADD_PRODUCT_PRICE,
-    ADD_PRODUCT_DESC,
-    BUYER_ENTER_CODE,
-    BUYER_SELECT_PRODUCT,
-    BUYER_ENTER_NAME,
-    BUYER_ENTER_PHONE,
-    BUYER_ENTER_ADDRESS,
-) = range(14)
+# دوال البوت
+async def start_command(update: Update, context: CallbackContext):
+    """معالجة أمر /start"""
+    user = update.effective_user
+    await update.message.reply_text(
+        f"👋 أهلاً {user.first_name}!\n\n"
+        "أنا بوت إدارة الطلبات 🤖\n\n"
+        "🎯 **للبائعين:**\n"
+        "• سجل متجر جديد\n"
+        "• أضف منتجاتك\n"
+        "• استلم طلبات الزبائن\n\n"
+        "🛒 **للزبائن:**\n"
+        "• اختر من المنتجات\n"
+        "• قدم طلبك بسهولة\n\n"
+        "📋 **الأوامر المتاحة:**\n"
+        "/register - تسجيل متجر جديد\n"
+        "/login - تسجيل الدخول\n"
+        "/add - إضافة منتج\n"
+        "/orders - عرض الطلبات\n"
+        "/help - المساعدة"
+    )
 
-# ========== Telegram Bot Functions ==========
-# (هذه دوال البوت، سيتم استيرادها من ملف منفصل)
+async def help_command(update: Update, context: CallbackContext):
+    """أمر المساعدة"""
+    await update.message.reply_text(
+        "📖 **دليل الاستخدام:**\n\n"
+        "1. البائع يسجل بـ /register\n"
+        "2. يحصل على كود متجر\n"
+        "3. الزبون يدخل الكود ويطلب\n"
+        "4. البائع يشرف على الطلبات\n\n"
+        "🔧 **للتجربة الآن:**\n"
+        "جرب /register لإنشاء متجر تجريبي"
+    )
+
+async def register_command(update: Update, context: CallbackContext):
+    """تسجيل بائع جديد"""
+    await update.message.reply_text(
+        "🏪 **تسجيل متجر جديد**\n\n"
+        "سيتم إنشاء متجر تجريبي لك:\n"
+        "• كود المتجر: TEST123\n"
+        "• كلمة المرور: 1234\n\n"
+        "📤 أعط هذا الكود للزبائن: TEST123\n\n"
+        "🔐 لتسجيل الدخول استخدم: /login"
+    )
+
+async def login_command(update: Update, context: CallbackContext):
+    """تسجيل دخول البائع"""
+    await update.message.reply_text(
+        "🔐 **تسجيل الدخول**\n\n"
+        "أدخل كود المتجر:\n"
+        "(جرب TEST123 للتجربة)"
+    )
+
+async def handle_message(update: Update, context: CallbackContext):
+    """معالجة الرسائل النصية"""
+    text = update.message.text
+    
+    if text == "TEST123":
+        await update.message.reply_text(
+            "✅ **تم الدخول لمتجر TEST123**\n\n"
+            "📋 **التحكم:**\n"
+            "/add - إضافة منتج\n"
+            "/orders - عرض الطلبات\n"
+            "/products - المنتجات"
+        )
+    elif "طلب" in text.lower():
+        await update.message.reply_text(
+            "🛒 **طلب جديد تم استلامه!**\n\n"
+            "📦 المنتج: منتج تجريبي\n"
+            "💰 السعر: 50 ريال\n"
+            "👤 الزبون: مستخدم تجريبي\n"
+            "📞 الهاتف: 0555555555\n\n"
+            "✅ تم حفظ الطلب بنجاح!"
+        )
+    else:
+        await update.message.reply_text(
+            "لم أفهم طلبك. استخدم /start للبدء"
+        )
 
 def create_bot():
     """إنشاء وتشغيل البوت"""
     token = os.getenv('BOT_TOKEN')
     if not token:
-        raise ValueError("❌ BOT_TOKEN غير موجود في متغيرات البيئة!")
+        logger.error("❌ BOT_TOKEN غير موجود!")
+        return None
     
     application = Application.builder().token(token).build()
     
-    # استيراد دوال البوت من ملف منفصل لتجنب المشاكل
-    from bot_functions import setup_bot_handlers
-    setup_bot_handlers(application)
+    # إضافة المعالجات
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("register", register_command))
+    application.add_handler(CommandHandler("login", login_command))
+    application.add_handler(CommandHandler("add", register_command))  # مؤقت
+    application.add_handler(CommandHandler("orders", register_command))  # مؤقت
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     return application
 
 def run_bot():
-    """تشغيل البوت في خيط منفصل"""
-    logging.info("🤖 بدء تشغيل Telegram Bot...")
+    """تشغيل البوت"""
+    logger.info("🚀 بدء تشغيل Telegram Bot...")
     try:
         bot_app = create_bot()
-        bot_app.run_polling(drop_pending_updates=True)
+        if bot_app:
+            bot_app.run_polling(drop_pending_updates=True)
     except Exception as e:
-        logging.error(f"❌ فشل تشغيل البوت: {e}")
+        logger.error(f"❌ فشل تشغيل البوت: {e}")
 
-# ========== التشغيل الرئيسي ==========
-if __name__ == '__main__':
-    # إعداد التسجيل
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
-    )
-    logger = logging.getLogger(__name__)
+# التشغيل الرئيسي
+if __name__ == "__main__":
+    import threading
     
-    try:
-        # بدء Telegram Bot في خيط منفصل
-        bot_thread = threading.Thread(target=run_bot, daemon=True)
-        bot_thread.start()
-        logger.info("🤖 Telegram Bot thread started")
-        
-        # بدء Flask في الخيط الرئيسي
-        logger.info("🌐 Starting Flask server on port 5000")
-        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
-        
-    except Exception as e:
-        logger.error(f"❌ فشل تشغيل التطبيق: {e}")
+    # تشغيل البوت في خيط منفصل
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    logger.info("🤖 Telegram Bot thread started")
+    
+    # تشغيل Flask
+    logger.info("🌐 Starting Flask server on port 5000")
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
